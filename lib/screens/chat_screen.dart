@@ -4,15 +4,14 @@ import 'package:chatter/theme.dart';
 import 'package:chatter/widgets/widgets.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
 class ChatScreen extends StatelessWidget {
-  static Route route(MessageData messageData) => MaterialPageRoute(
-        builder: (context) => ChatScreen(messageData: messageData),
+  static Route routeWithChannel(Channel channel) => MaterialPageRoute(
+        builder: (context) => StreamChannel(child: const ChatScreen(), channel: channel),
       );
 
-  const ChatScreen({Key? key, required this.messageData}) : super(key: key);
-
-  final MessageData messageData;
+  const ChatScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -20,9 +19,9 @@ class ChatScreen extends StatelessWidget {
       appBar: AppBar(
         iconTheme: Theme.of(context).iconTheme,
         centerTitle: false,
-        title: _AppBarTitle(
-          messageData: messageData,
-        ),
+        // title: _AppBarTitle(
+        //   messageData: messageData,
+        // ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leadingWidth: 54,

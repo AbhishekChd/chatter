@@ -114,7 +114,16 @@ class _BottomNavigationBarState extends State<_BottomNavigationBar> {
                   onTap: handleItemSelected,
                   isItemSelected: selectedIndex == 1,
                 ),
-                ActionButton(color: AppColors.secondary, icon: CupertinoIcons.add, size: 48, onPressed: () {}),
+                ActionButton(
+                    color: AppColors.secondary,
+                    icon: CupertinoIcons.add,
+                    size: 48,
+                    onPressed: () {
+                      showDialog(
+                          context: context,
+                          builder: (context) =>
+                              const Dialog(child: AspectRatio(aspectRatio: 8 / 7, child: ContactsPage())));
+                    }),
                 _NavigationBarItem(
                   index: 2,
                   label: "Contacts",

@@ -1,3 +1,4 @@
+import 'package:chatter/app.dart';
 import 'package:chatter/helpers.dart';
 import 'package:chatter/models/models.dart';
 import 'package:chatter/screens/screens.dart';
@@ -6,59 +7,109 @@ import 'package:chatter/widgets/widgets.dart';
 import 'package:faker/faker.dart';
 import 'package:flutter/material.dart';
 import 'package:jiffy/jiffy.dart';
+import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
-class MessagesPage extends StatelessWidget {
+class MessagesPage extends StatefulWidget {
   const MessagesPage({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
-        const SliverToBoxAdapter(
-          child: _Stories(),
+  State<MessagesPage> createState() => _MessagesPageState();
+}
+
+class _MessagesPageState extends State<MessagesPage> {
+  late final channelListController = StreamChannelListController(
+      client: StreamChatCore.of(context).client,
+      filter: Filter.and([
+        Filter.equal('type', 'messaging'),
+        Filter.in_('members', [StreamChatCore.of(context).currentUser!.id])
+      ]));
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        body: PagedValueListenableBuilder<int, Channel>(
+          valueListenable: channelListController,
+          builder: (context, value, child) {
+            return value.when(
+              (channels, nextPageKey, error) {
+                if (channels.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'So empty.\nGo and message someone.',
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }
+                return LazyLoadScrollView(
+                  onEndOfPage: () async {
+                    if (nextPageKey != null) {
+                      channelListController.loadMore(nextPageKey);
+                    }
+                  },
+                  child: CustomScrollView(
+                    slivers: [
+                      const SliverToBoxAdapter(
+                        child: _Stories(),
+                      ),
+                      const SliverPadding(padding: EdgeInsets.all(8)),
+                      SliverList(
+                          delegate: SliverChildBuilderDelegate((context, index) {
+                        return _MessageTile(
+                          channel: channels[index],
+                        );
+                      }, childCount: channels.length))
+                    ],
+                  ),
+                );
+              },
+              loading: () => const Center(
+                child: SizedBox(
+                  height: 100,
+                  width: 100,
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+              error: (e) => Center(
+                child: Text(
+                  'Oh no, something went wrong. '
+                  'Please check your config. $e',
+                ),
+              ),
+            );
+          },
         ),
-        const SliverPadding(padding: EdgeInsets.all(8)),
-        SliverList(delegate: SliverChildBuilderDelegate(_delegate))
-      ],
-    );
+      );
+
+  @override
+  void initState() {
+    channelListController.doInitialLoad();
+    super.initState();
   }
 
-  Widget _delegate(BuildContext context, int index) {
-    final faker = Faker();
-    final date = Helpers.randomDate();
-    final messageData = MessageData(
-        senderName: faker.person.firstName(),
-        message: faker.lorem.sentence(),
-        messageDate: date,
-        dateMessage: Jiffy(date).fromNow(),
-        profilePicture: Helpers.randomPictureUrl());
-    return index.isEven
-        ? _MessageTile(
-            messageData: messageData,
-          )
-        : const Divider(
-            color: Colors.grey,
-            height: 0,
-          );
+  @override
+  void dispose() {
+    channelListController.dispose();
+    super.dispose();
   }
 }
 
 class _MessageTile extends StatelessWidget {
-  const _MessageTile({Key? key, required this.messageData}) : super(key: key);
+  const _MessageTile({Key? key, required this.channel}) : super(key: key);
 
-  final MessageData messageData;
+  final Channel channel;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => Navigator.of(context).push(ChatScreen.route(messageData)),
+      onTap: () {
+        Navigator.of(context).push(ChatScreen.routeWithChannel(channel));
+      },
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Row(
           children: [
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Avatar.medium(url: Helpers.randomPictureUrl()),
+              child: Avatar.medium(url: Helpers.getChannelImage(channel, context.currentUser!)),
             ),
             const SizedBox(
               width: 8,
@@ -68,16 +119,13 @@ class _MessageTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  messageData.senderName,
+                  Helpers.getChannelName(channel, context.currentUser!),
                   style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
                 ),
                 const SizedBox(
                   height: 8,
                 ),
-                Text(
-                  messageData.message,
-                  style: const TextStyle(overflow: TextOverflow.ellipsis, fontSize: 12),
-                )
+                _buildLastMessage(),
               ],
             )),
             Padding(
@@ -85,10 +133,7 @@ class _MessageTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    messageData.dateMessage.toUpperCase(),
-                    style: const TextStyle(fontSize: 12, color: AppColors.textFaded),
-                  ),
+                  _buildLastMessageAt(),
                   const SizedBox(
                     height: 8,
                   ),
@@ -108,6 +153,68 @@ class _MessageTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildLastMessage() {
+    return BetterStreamBuilder<int>(
+      stream: channel.state!.unreadCountStream,
+      initialData: channel.state?.unreadCount ?? 0,
+      builder: (context, count) {
+        return BetterStreamBuilder<Message>(
+          stream: channel.state!.lastMessageStream,
+          initialData: channel.state!.lastMessage,
+          builder: (context, lastMessage) {
+            return Text(
+              lastMessage.text ?? '',
+              overflow: TextOverflow.ellipsis,
+              style: (count > 0)
+                  ? const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.secondary,
+                    )
+                  : const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textFaded,
+                    ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildLastMessageAt() {
+    return BetterStreamBuilder<DateTime>(
+      stream: channel.lastMessageAtStream,
+      initialData: channel.lastMessageAt,
+      builder: (context, data) {
+        final lastMessageAt = data.toLocal();
+        String stringDate;
+        final now = DateTime.now();
+
+        final startOfDay = DateTime(now.year, now.month, now.day);
+
+        if (lastMessageAt.millisecondsSinceEpoch >= startOfDay.millisecondsSinceEpoch) {
+          stringDate = Jiffy(lastMessageAt.toLocal()).jm;
+        } else if (lastMessageAt.millisecondsSinceEpoch >=
+            startOfDay.subtract(const Duration(days: 1)).millisecondsSinceEpoch) {
+          stringDate = 'YESTERDAY';
+        } else if (startOfDay.difference(lastMessageAt).inDays < 7) {
+          stringDate = Jiffy(lastMessageAt.toLocal()).EEEE;
+        } else {
+          stringDate = Jiffy(lastMessageAt.toLocal()).yMd;
+        }
+        return Text(
+          stringDate,
+          style: const TextStyle(
+            fontSize: 11,
+            letterSpacing: -0.2,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textFaded,
+          ),
+        );
+      },
     );
   }
 }
