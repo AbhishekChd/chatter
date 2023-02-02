@@ -1,5 +1,6 @@
-import 'package:chatter/helpers.dart';
+import 'package:chatter/app.dart';
 import 'package:chatter/pages/pages.dart';
+import 'package:chatter/screens/screens.dart';
 import 'package:chatter/theme.dart';
 import 'package:chatter/widgets/widgets.dart';
 import 'package:flutter/cupertino.dart';
@@ -38,7 +39,13 @@ class HomeScreen extends StatelessWidget {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
-            child: Avatar.small(url: Helpers.randomPictureUrl()),
+            child: Hero(
+              tag: "user-profile-image",
+              child: Avatar.small(
+                url: context.currentUserImage,
+                onTap: () => Navigator.of(context).push(ProfileScreen.route),
+              ),
+            ),
           )
         ],
         backgroundColor: Colors.transparent,
