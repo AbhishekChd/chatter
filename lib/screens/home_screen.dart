@@ -12,9 +12,9 @@ class HomeScreen extends StatelessWidget {
   final ValueNotifier<int> pageIndex = ValueNotifier(0);
   final ValueNotifier<String> title = ValueNotifier("Messages");
 
-  final pages = const [MessagesPage(), NotificationsPage(), CallsPage(), ContactsPage()];
+  final pages = const [MessagesPage(), CallsPage(), ContactsPage(), NotificationsPage()];
 
-  final pageTitles = const ["Messages", "Notifications", "Calls", "Contacts"];
+  final pageTitles = const ["Messages", "Calls", "Contacts", "Notifications"];
 
   @override
   Widget build(BuildContext context) {
