@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:chatter/app.dart';
 import 'package:chatter/helpers.dart';
 import 'package:chatter/theme.dart';
@@ -6,12 +7,38 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:stream_chat_flutter/stream_chat_flutter.dart';
 
-class ChatScreen extends StatelessWidget {
+class ChatScreen extends StatefulWidget {
   static Route routeWithChannel(Channel channel) => MaterialPageRoute(
         builder: (context) => StreamChannel(channel: channel, child: const ChatScreen()),
       );
 
   const ChatScreen({Key? key}) : super(key: key);
+
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  late StreamSubscription<int> unreadCountSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+
+    unreadCountSubscription = StreamChannel.of(context).channel.state!.unreadCountStream.listen(_unreadCountHandler);
+  }
+
+  Future<void> _unreadCountHandler(int count) async {
+    if (count > 0) {
+      await StreamChannel.of(context).channel.markRead();
+    }
+  }
+
+  @override
+  void dispose() {
+    unreadCountSubscription.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -182,55 +209,57 @@ class _AppBarTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Channel channel = StreamChannel.of(context).channel;
-    return Row(
-      children: [
-        Avatar(
-          url: Helpers.getChannelImage(channel, context.currentUser!),
-          radius: 22,
-        ),
-        const SizedBox(
-          width: 16,
-        ),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                Helpers.getChannelName(channel, context.currentUser!),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, overflow: TextOverflow.ellipsis),
-              ),
-              const SizedBox(
-                height: 8,
-              ),
-              BetterStreamBuilder<List<Member>>(
-                stream: channel.state!.membersStream,
-                initialData: channel.state!.members,
-                builder: (context, data) =>
-                    ConnectionStatusBuilder(
-                  statusBuilder: (context, status) {
-                    switch (status) {
-                      case ConnectionStatus.connected:
-                        return _buildConnectedTitleState(context, data);
-                      case ConnectionStatus.connecting:
-                        return const Text(
-                          "Connecting",
-                          style: TextStyle(fontSize: 12, color: Colors.orange),
-                        );
-                      case ConnectionStatus.disconnected:
-                        return const Text(
-                          "Offline",
-                          style: TextStyle(fontSize: 12, color: Colors.red),
-                        );
-                      default:
-                        return const SizedBox.shrink();
-                    }
-                  },
-                ),
-              ),
-            ],
+    return StreamChat(
+      client: StreamChatCore.of(context).client,
+      child: Row(
+        children: [
+          Avatar(
+            url: Helpers.getChannelImage(channel, context.currentUser!),
+            radius: 22,
           ),
-        )
-      ],
+          const SizedBox(
+            width: 16,
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  Helpers.getChannelName(channel, context.currentUser!),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, overflow: TextOverflow.ellipsis),
+                ),
+                const SizedBox(
+                  height: 8,
+                ),
+                BetterStreamBuilder<List<Member>>(
+                  stream: channel.state!.membersStream,
+                  initialData: channel.state!.members,
+                  builder: (context, data) => ConnectionStatusBuilder(
+                    statusBuilder: (context, status) {
+                      switch (status) {
+                        case ConnectionStatus.connected:
+                          return _buildConnectedTitleState(context, data);
+                        case ConnectionStatus.connecting:
+                          return const Text(
+                            "Connecting",
+                            style: TextStyle(fontSize: 12, color: Colors.orange),
+                          );
+                        case ConnectionStatus.disconnected:
+                          return const Text(
+                            "Offline",
+                            style: TextStyle(fontSize: 12, color: Colors.red),
+                          );
+                        default:
+                          return const SizedBox.shrink();
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          )
+        ],
+      ),
     );
   }
 

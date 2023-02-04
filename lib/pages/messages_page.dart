@@ -137,16 +137,9 @@ class _MessageTile extends StatelessWidget {
                   const SizedBox(
                     height: 8,
                   ),
-                  Container(
-                      width: 18,
-                      height: 18,
-                      decoration: const BoxDecoration(color: AppColors.secondary, shape: BoxShape.circle),
-                      child: Center(
-                        child: Text(
-                          "${faker.randomGenerator.integer(10)}",
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textLight),
-                        ),
-                      ))
+                  Center(
+                    child: UnreadMessagesIndicator(channel: channel),
+                  )
                 ],
               ),
             )
