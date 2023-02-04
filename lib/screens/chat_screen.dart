@@ -510,7 +510,7 @@ class _MessageBottomActionBarState extends State<_MessageBottomActionBar> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ActionButton(color: AppColors.accent, icon: Icons.send_rounded, size: 42, onPressed: () {}),
+            child: ActionButton(color: AppColors.accent, icon: Icons.send_rounded, size: 42, onPressed: _sendMessage),
           )
         ],
       ),
